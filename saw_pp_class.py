@@ -12,7 +12,15 @@ from lib import *
 
 
 class time_resolved_analysis():
-	''' The Tiff files to be analyzed must be in the data folder
+	''' 	This class provides methods to do a complete analysis of pulse picker. 
+		The raw data consists of tif files. One scan consists of several tif files recorded
+		at different delay. In the example there are 10 scans, each one consisting of 1001 picture. 
+		
+		The Tiff files to be analyzed must be in the data folder: since the original data are
+		approximately 10.000 tif files, I do not upload them on github. To run the test function I use the files
+		produced by tiff_extract_n_scans.
+	
+		sample = string, the name of the sample, will be used when saving data/picture relative to the sample
 
 		pic_name = string,  'the name of the tif image without the number'
 	
@@ -33,6 +41,8 @@ class time_resolved_analysis():
 		return	
 	
 	def create_name_array(self):
+		'''This method creates an array with the names of all the tiff files used for n scans. 
+		At the moment this method is not used by other classes, this will be implemented in future'''
 		file_names = []
 		for m in range(0,self.n_scans):
 			for i in range(0, self.scan_length):
@@ -42,7 +52,7 @@ class time_resolved_analysis():
 		
 		
 	def tiff_extract_n_scans(self, file_names, xpix_in, xpix_fin, ypix_in, ypix_fin, up_down):
-		'''this function read n_scans composed  of scan_length tif files and extract the values 
+		'''this method read n_scans composed  of scan_length tif files and extract the values 
 		of certain pixels and saves them in matrix
 	
 		file_names list of strings, the name of the images to be analyzed, this is still not used at the moment
@@ -100,6 +110,18 @@ class time_resolved_analysis():
 		return intensity_all#, imarray
 	
 	def select_good_scans(self, intensity, xpix_in, xpix_fin, ypix_in, ypix_fin, rejection, up_down, plot ):
+		'''this method provides an easy way to differ between pixel scans. It differers between the pixels hit by the 
+		plus minus first order and the others. TO DO: draw a picture to explain this. 
+	
+		file_names list of strings, the name of the images to be analyzed, this is still not used at the moment
+		
+		xpix_in = initial pixel for loop on x coordinate
+		xpix_fin = final pixel for loop on x coordinate
+	
+		ypix_in = initial pixel for loop on y coordinate
+		ypix_fin = final pixel for loop on y coordinate
+	
+		up_down = string, will be used to save the data and differ between plus/minus first order'''
 		self.intensity = intensity
 		self.xpix_in = xpix_in
 		self.xpix_fin = xpix_fin
