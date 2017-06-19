@@ -195,6 +195,14 @@ class time_resolved_analysis():
 		return  intensity_sum	
 	
 	def smooth(self, intensity, Nsm):
+		'''this method provides an easy way to smooth the data. the data points of a signal are modified so 
+		individual points (presumably because of noise) are reduced, and points that are lower than the adjacent 
+		points are increased leading to a smoother signal. 
+	
+		intensity =array, scan to smooth
+		Nsm = int, number of data points to average to smooth intensity
+		
+		the method return the intensity array, and an arbitrary x array smoothed by Nsm'''
 		self.intensity = intensity
 		self.Nsm = Nsm
 
@@ -210,6 +218,11 @@ class time_resolved_analysis():
 		return delay_smooth[0:len(delay_smooth)-1], intensity_smooth[0:len(delay_smooth)-1]
 
 	def derive(self, intensity):
+		'''this method provides an easy way to derive a data set 
+	
+		intensity =array, scan to smooth
+		
+		the method return the derived intensity array, and saves it in the intermediate folder'''
 		self.intensity = intensity
 		intensity_der = np.empty(len(self.intensity))
 		for x in range(1,len(self.intensity)):
@@ -224,6 +237,16 @@ class time_resolved_analysis():
 		return intensity_der[0:len(intensity_der)+1]
 	
 	def fit_edge(self, delay, intensity_der, plot):
+		'''this method provides an easy way to fit the edges. Of course if used to fit the delay scan, this has to be 
+			derived.
+		
+		delay = array, the delay relative to intensity_der
+		intensity_der =array, the intensity scan derived, so that the there are peaks instead of edges
+		plot = integer, if plot == 1 the results of the fit are plot and saved.
+		
+		the method returns the position and the fwhm of the left and right edge.
+		Additionally it saves the parameters and the pcov matrix resulting from the fit in the intermediate folder,
+		as well as a graph with the fit if plot = 1'''
 		self.delay = delay
 		self.intensity_der = intensity_der
 		self.plot = plot 
@@ -270,6 +293,17 @@ class time_resolved_analysis():
 		return mean_l, fwhm_l, mean_r, fwhm_r
 
 	def fit_single_bunch(self, delay, intensity,left_edge, right_edge, fwhm, Nsm, plot):
+		'''this method provides an easy way to fit the edges. Of course if used to fit the delay scan, this has to be 
+			derived.
+		
+		delay = array, the delay relative to intensity_der
+		intensity_der =array, the intensity scan derived, so that the there are peaks instead of edges
+		left_edge = int, the position of the left edge
+		right_edge = int, the position of the right edge
+
+		the method returns the position and the fwhm of single bunch.
+		Additionally it saves the parameters and the pcov matrix resulting from the fit in the intermediate folder,
+		as well as a graph with the fit if plot = 1'''
 		self.delay = delay
 		self.intensity = intensity
 		self.left_edge = left_edge
@@ -289,10 +323,11 @@ class time_resolved_analysis():
 		n = len(x)                #the number of data
 		mean = (self.left_edge + self.right_edge)/2 #               #note this correction
 		sigma = self.fwhm       #note this correction
-		print '##################################'
-		print mean, sigma
 		#fitting
-		[amp_sb,mean_sb,sigma_sb],pcov = curve_fit(gaus,x,y,p0=[1,mean,sigma])
+		[amp_sb,mean_sb,sigma_sb],pcov_sb = curve_fit(gaus,x,y,p0=[1,mean,sigma])
+		#SAVING FIT PARAMETER
+		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'single_bunch_fit_param.txt', [amp_sb,mean_sb,sigma_sb] )
+		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'single_bunch_fit_pcov.txt', pcov_sb )
 		if plot ==1:
 			plt.figure(11)
 			plt.plot(self.delay, self.intensity,'b+:',label='data')
@@ -303,6 +338,7 @@ class time_resolved_analysis():
 			plt.ylabel('Normalized Intensity (a.u.)')
 			plt.savefig('intermediate/'+self.sample+'__single_bunch_fitting.pdf', bbox_inches="tight") 
 			plt.show()
+		return mean_sb, sigma_sb * 2.35
 		
 def test_time_resolved_analysis():
 	test = time_resolved_analysis('test', 'ipp', 2426, 1001, 10)
