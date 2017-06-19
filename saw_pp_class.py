@@ -180,6 +180,7 @@ class time_resolved_analysis():
 		y_rej_short = y_rej[0:rej]
 		#print 'xrej', x_rej_short
 		#print 'y rej', y_rej_short
+		print 'selecting scans '+up_down
 		print 'rejected', rej
 		print 'passed', pas
 		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'_selected_intensity.txt', (intensity_sum))
@@ -216,6 +217,31 @@ class time_resolved_analysis():
 		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'_intensity_smooth.txt', intensity_smooth) 
 		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'_x_smooth.txt', delay_smooth) 
 		return delay_smooth[0:len(delay_smooth)-1], intensity_smooth[0:len(delay_smooth)-1]
+		
+	def norm(self, delay, intensity, intensity_der,Nsm):
+		self.delay = delay
+		self.intensity = intensity
+		self.intensity_der = intensity_der
+		self.Nsm = Nsm
+		#Original dataset shows an increasing amplitude during the scan that is not related
+		#width the effect we want to observe. we then normalize it:
+		#averaging five points to the left and 5 to the right and drawing a line
+		left_av = np.average(self.intensity[0:Nsm/3])
+		right_av = np.average(self.intensity[-Nsm/3:-1])
+		norm_line = left_av + (right_av-left_av)/(len(self.delay)*self.Nsm)*self.delay
+		
+		#correcting for the pendenza della retta
+		self.intensity = self.intensity/norm_line
+		
+		#shifting to zero 
+		self.intensity = self.intensity-np.amin(self.intensity)
+		#print 'ss max', np.amin(ss)
+		
+		#normalizing to 1
+		self.intensity = self.intensity/np.amax(self.intensity)
+		self.intensity_der = self.intensity_der/np.amax(self.intensity_der)
+		
+		return self.delay, self.intensity, self.intensity_der
 
 	def derive(self, intensity):
 		'''this method provides an easy way to derive a data set 
@@ -323,8 +349,14 @@ class time_resolved_analysis():
 		n = len(x)                #the number of data
 		mean = (self.left_edge + self.right_edge)/2 #               #note this correction
 		sigma = self.fwhm       #note this correction
+		amp = np.amax(y)
 		#fitting
-		[amp_sb,mean_sb,sigma_sb],pcov_sb = curve_fit(gaus,x,y,p0=[1,mean,sigma])
+		print mean, sigma, amp
+		plt.figure(200)
+		plt.plot(x,y)
+		[amp_sb,mean_sb,sigma_sb],pcov_sb = curve_fit(gaus,x,y,p0=[amp,mean,sigma])
+		print mean_sb, sigma_sb, amp_sb
+		fwhm_sb = sigma_sb * 2.35
 		#SAVING FIT PARAMETER
 		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'single_bunch_fit_param.txt', [amp_sb,mean_sb,sigma_sb] )
 		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'single_bunch_fit_pcov.txt', pcov_sb )
@@ -336,9 +368,11 @@ class time_resolved_analysis():
 			plt.title('Delay scan')
 			plt.xlabel('Delay (ns)')
 			plt.ylabel('Normalized Intensity (a.u.)')
+			plt.yscale('log')
 			plt.savefig('intermediate/'+self.sample+'__single_bunch_fitting.pdf', bbox_inches="tight") 
 			plt.show()
-		return mean_sb, sigma_sb * 2.35
+		print 'fwhm', fwhm_sb
+		return mean_sb, fwhm_sb
 		
 def test_time_resolved_analysis():
 	test = time_resolved_analysis('test', 'ipp', 2426, 1001, 10)
@@ -361,16 +395,28 @@ def test_time_resolved_analysis():
 	#~ intensity_up = test.tiff_extract_n_scans(file_names, xpix_in, xpix_fin, ypix_in, ypix_fin, 'up')
 	intensity_up = np.loadtxt('intermediate/test_up_intensity.txt')
 	intensity_up = test.select_good_scans(intensity_up, xpix_in, xpix_fin, ypix_in, ypix_fin, rejection, 'up', 1)
-	
-	#~ intensity = (intensity_down + intensity_up)/2
-	intensity = intensity_up
 
-	Nsm = 15
+	intensity = (intensity_down + intensity_up)/2
+	plt.plot(intensity, 'r')
+	plt.plot(intensity_down, 'b')
+	plt.plot(intensity_up, 'g')
+
+	
+	plt.show()
+	#~ intensity = intensity_up 
+
+	Nsm = 9
 	delay_smooth, intensity_smooth = test.smooth(intensity, Nsm)
 	intensity_der = test.derive(intensity_smooth)
+	delay_smooth, intensity_smooth, intensity_der = test.norm(delay_smooth, intensity_smooth, intensity_der,Nsm)	
 	mean_l, fwhm_l, mean_r, fwhm_r = test.fit_edge(delay_smooth, intensity_der, 1)
-	fwhm = (fwhm_l + fwhm_r)/2
-	test.fit_single_bunch(delay_smooth, intensity_smooth, mean_l, mean_r, fwhm, Nsm, 1)
+	fwhm_edges = (fwhm_l + fwhm_r)/2
+	mean_sb, fwhm_sb = test.fit_single_bunch(delay_smooth, intensity_smooth, mean_l, mean_r, fwhm_edges, Nsm, 1)
+	print 'FWHM right edge:', fwhm_r, 'ns'
+	print 'FWHM left edge:', fwhm_l, 'ns'
+	print 'FWHM single bunch:', fwhm_sb, 'ns'
+	print 'FWHM average:', (fwhm_r+fwhm_l+fwhm_sb)/3, 'ns'
+
 	#plt.show()
 
 
