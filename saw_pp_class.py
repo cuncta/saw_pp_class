@@ -28,17 +28,36 @@ class time_resolved_analysis():
 	
 		n_scans = int, number of stacks(number of scans)'''
 	
-	def __init__(self, sample, pic_name, first_im, scan_length, n_scans):
+	def __init__(self, sample, pic_name, first_im, scan_length, n_scans, pixel = 3):
 		
 		self.sample = sample
 		self.pic_name = pic_name
 		self.first_im = first_im
 		self.scan_length = scan_length 
 		self.n_scans = n_scans
+		#variables that will be defined later
+		self.pixel = None
+		self.xpix_in = None
+		self.xpix_fin= None
+		self.ypix_in = None 
+		self.ypix_fin = None 
+		self.up_down = None
+		self.rejection = None
 
 		if not os.path.exists('intermediate'):
 			os.mkdir('intermediate')
 		return	
+	
+	def set_region(self, x1, x2, y1, y2, label):
+		self.xpix_in = x1
+		self.xpix_fin = x2
+		self.ypix_in = y1
+		self.ypix_fin = y2
+		self.up_down = label
+	def set_rejection(self, rejection):
+		self.rejection = rejection
+	def set_Nsm(self, Nsm):
+		self.Nsm = Nsm
 	
 	def create_name_array(self):
 		'''This method creates an array with the names of all the tiff files used for n scans. 
@@ -51,7 +70,7 @@ class time_resolved_analysis():
 		return file_names
 		
 		
-	def tiff_extract_n_scans(self, file_names, xpix_in, xpix_fin, ypix_in, ypix_fin, up_down):
+	def tiff_extract_n_scans(self):
 		'''this method read n_scans composed  of scan_length tif files and extract the values 
 		of certain pixels and saves them in matrix
 	
@@ -65,7 +84,6 @@ class time_resolved_analysis():
 	
 		up_down = string, will be used to save the data and differ between plus/minus first order'''
 		
-		self.file_names = file_names
 		self.xpix_in = xpix_in
 		self.xpix_fin = xpix_fin
 		self.ypix_in = ypix_in
@@ -108,8 +126,9 @@ class time_resolved_analysis():
 		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'_imarray.txt', (imarray))   
 		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'_intensity.txt', (intensity_all))   
 		return intensity_all#, imarray
-	
-	def select_good_scans(self, intensity, xpix_in, xpix_fin, ypix_in, ypix_fin, rejection, up_down, plot ):
+
+		
+	def select_good_scans(self, intensity, plot ):
 		'''this method provides an easy way to differ between pixel scans. It differers between the pixels hit by the 
 		plus minus first order and the others. TO DO: draw a picture to explain this. 
 	
@@ -123,12 +142,7 @@ class time_resolved_analysis():
 	
 		up_down = string, will be used to save the data and differ between plus/minus first order'''
 		self.intensity = intensity
-		self.xpix_in = xpix_in
-		self.xpix_fin = xpix_fin
-		self.ypix_in = ypix_in
-		self.ypix_fin = ypix_fin
-		self.rejection = rejection
-		self.up_down = up_down
+
 		
 		#~ intensity = np.loadtxt('intermediate/'+self.sample+'_'+self.up_down+'_intensity.txt')   
 
@@ -180,7 +194,7 @@ class time_resolved_analysis():
 		y_rej_short = y_rej[0:rej]
 		#print 'xrej', x_rej_short
 		#print 'y rej', y_rej_short
-		print 'selecting scans '+up_down
+		print 'selecting scans '+self.up_down
 		print 'rejected', rej
 		print 'passed', pas
 		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'_selected_intensity.txt', (intensity_sum))
@@ -195,7 +209,7 @@ class time_resolved_analysis():
 			plt.show()
 		return  intensity_sum	
 	
-	def smooth(self, intensity, Nsm):
+	def smooth(self, intensity):
 		'''this method provides an easy way to smooth the data. the data points of a signal are modified so 
 		individual points (presumably because of noise) are reduced, and points that are lower than the adjacent 
 		points are increased leading to a smoother signal. 
@@ -205,7 +219,6 @@ class time_resolved_analysis():
 		
 		the method return the intensity array, and an arbitrary x array smoothed by Nsm'''
 		self.intensity = intensity
-		self.Nsm = Nsm
 
 		delay_smooth = np.zeros(len(self.intensity)/self.Nsm+1)
 		intensity_smooth = np.zeros(len(self.intensity)/self.Nsm+1)
@@ -218,7 +231,7 @@ class time_resolved_analysis():
 		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'_x_smooth.txt', delay_smooth) 
 		return delay_smooth[0:len(delay_smooth)-1], intensity_smooth[0:len(delay_smooth)-1]
 		
-	def norm(self, delay, intensity, intensity_der,Nsm):
+	def norm(self, delay, intensity, intensity_der):
 		'''Original dataset shows an increasing amplitude during the scan that is not related
 		width the effect we want to observe. we then normalize it:
 		averaging five points to the left and 5 to the right and drawing a line, and then normalizing to one
@@ -229,11 +242,10 @@ class time_resolved_analysis():
 		self.delay = delay
 		self.intensity = intensity
 		self.intensity_der = intensity_der
-		self.Nsm = Nsm
 		
 		#calculating the line
-		left_av = np.average(self.intensity[0:Nsm/3])
-		right_av = np.average(self.intensity[-Nsm/3:-1])
+		left_av = np.average(self.intensity[0:self.Nsm/3])
+		right_av = np.average(self.intensity[-self.Nsm/3:-1])
 		norm_line = left_av + (right_av-left_av)/(len(self.delay)*self.Nsm)*self.delay
 		
 		#correcting for the pendenza della retta
@@ -286,21 +298,28 @@ class time_resolved_analysis():
 		#LEFT PEAK
 		x_l = self.delay[0:len(self.delay)/2]
 		y = self.intensity_der[0:len(self.intensity_der)/2] * -1
-		n = len(x_l)                          			#the number of data
+		n = len(x_l)   		#the number of data
+		amp = np.amax(y)
 		mean = x_l[np.argmax(y)]				#guessing mean value
 		sigma = np.sqrt(sum(y*(x_l-mean)**2)/n )#guessing the fwhm
+		#~ plt.figure(302)
+		#~ plt.plot(x_l,y)
+		#~ print mean, sigma*2.35, 
+		#~ plt.show()
+		
 		#fitting
-		[amp_l,mean_l,sigma_l],pcov_l = curve_fit(gaus,x_l,y,p0=[1,mean,sigma])
+		[amp_l,mean_l,sigma_l],pcov_l = curve_fit(gaus,x_l,y,p0=[amp,mean,sigma])
 		fwhm_l = sigma_l * 2.35
 
 		#RIGHT PEAK
 		x_r = self.delay[len(self.delay)/2:len(self.delay)]
 		y = self.intensity_der[len(self.intensity_der)/2:len(self.intensity_der)] 
 		n = len(x_r)                          #the number of data
+		amp = np.amax(y)
 		mean = x_r[np.argmax(y)]                   #note this correction
 		#No need to guess sigma again, taking the value from the previous fit
 		#fitting
-		[amp_r,mean_r,sigma_r],pcov_r = curve_fit(gaus,x_r,y,p0=[1,mean,sigma_l])
+		[amp_r,mean_r,sigma_r],pcov_r = curve_fit(gaus,x_r,y,p0=[amp,mean,sigma_l])
 		fwhm_r = sigma_r * 2.35
 		#SAVING FIT PARAMETER
 		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'left_edge_fit_param.txt', [amp_l,mean_l,sigma_l] )
@@ -324,7 +343,7 @@ class time_resolved_analysis():
 			plt.show()
 		return mean_l, fwhm_l, mean_r, fwhm_r
 
-	def fit_single_bunch(self, delay, intensity,left_edge, right_edge, fwhm, Nsm, shift, plot):
+	def fit_single_bunch(self, delay, intensity,left_edge, right_edge, fwhm, shift, plot):
 		'''this method provides an easy way to fit the edges. Of course if used to fit the delay scan, this has to be 
 			derived.
 		
@@ -347,23 +366,22 @@ class time_resolved_analysis():
 		self.left_edge = left_edge
 		self.right_edge = right_edge
 		self.fwhm = fwhm
-		self.Nsm = Nsm
 		self.shift = shift
 		self.plot = plot 
 		
 		#defining the region to fit
 		mean = np.int((self.left_edge + self.right_edge)/2/self.Nsm)               
-		h_w = fwhm/Nsm
+		h_w = fwhm/self.Nsm
 		l = np.int(mean - h_w)
 		r = np.int(mean + h_w)
 		#~ l = 40
 		#~ r = 62
 		x = self.delay[l : r]
 		y = self.intensity[l : r]
-		print 'l, r', l, r
-		plt.figure(122)
-		plt.title('fitting region for single bunch')
-		plt.plot(x, y)
+		#~ print 'l, r', l, r
+		#~ plt.figure(122)
+		#~ plt.title('fitting region for single bunch')
+		#~ plt.plot(x, y)
 		#Guessing the parameter for the fit
 		n = len(x)                #the number of data
 		mean = (self.left_edge + self.right_edge)/2 #               #note this correction
@@ -398,42 +416,44 @@ def test_time_resolved_analysis():
 	xpix_fin = 859
 	ypix_in = 211
 	ypix_fin = 219
-	rejection = 140
+	test.set_region(xpix_in, xpix_fin,ypix_in,ypix_fin,'down')
 	#~ intensity_down = test.tiff_extract_n_scans(file_names, xpix_in, xpix_fin, ypix_in, ypix_fin, 'down')
 	intensity_down = np.loadtxt('intermediate/test_down_intensity.txt')
-	intensity_down = test.select_good_scans(intensity_down, xpix_in, xpix_fin, ypix_in, ypix_fin, rejection, 'down', 0)
+	test.set_rejection(140)
+	intensity_down = test.select_good_scans(intensity_down, 0)
 
 	xpix_in = 860
 	xpix_fin = 864
 	ypix_in = 156
 	ypix_fin = 163
-	rejection = 150
+	test.set_region(xpix_in, xpix_fin,ypix_in,ypix_fin,'up')
 	#~ intensity_up = test.tiff_extract_n_scans(file_names, xpix_in, xpix_fin, ypix_in, ypix_fin, 'up')
 	intensity_up = np.loadtxt('intermediate/test_up_intensity.txt')
-	intensity_up = test.select_good_scans(intensity_up, xpix_in, xpix_fin, ypix_in, ypix_fin, rejection, 'up', 0)
+	test.set_rejection(150)
+	intensity_up = test.select_good_scans(intensity_up, 0)
 
 	intensity = (intensity_down + intensity_up)/2
-	plt.plot(intensity, 'r')
-	plt.plot(intensity_down, 'b')
-	plt.plot(intensity_up, 'g')
+	#~ plt.plot(intensity, 'r')
+	#~ plt.plot(intensity_down, 'b')
+	#~ plt.plot(intensity_up, 'g')
 
 	
-	plt.show()
+	#~ plt.show()
 	#~ intensity = intensity_up 
-
-	Nsm = 9
-	delay_smooth, intensity_smooth = test.smooth(intensity, Nsm)
+	
+	test.set_Nsm(9)
+	delay_smooth, intensity_smooth = test.smooth(intensity)
 	intensity_der = test.derive(intensity_smooth)
-	delay_smooth, intensity_smooth, intensity_der = test.norm(delay_smooth, intensity_smooth, intensity_der,Nsm)	
+	delay_smooth, intensity_smooth, intensity_der = test.norm(delay_smooth, intensity_smooth, intensity_der)	
 	mean_l, fwhm_l, mean_r, fwhm_r = test.fit_edge(delay_smooth, intensity_der, 1)
 	fwhm_edges = (fwhm_l + fwhm_r)/2
-	mean_sb, fwhm_sb = test.fit_single_bunch(delay_smooth, intensity_smooth, mean_l, mean_r, fwhm_edges, Nsm,0.01, 1)
+	mean_sb, fwhm_sb = test.fit_single_bunch(delay_smooth, intensity_smooth, mean_l, mean_r, fwhm_edges,0.01, 0)
 	print 'FWHM right edge:', fwhm_r, 'ns'
 	print 'FWHM left edge:', fwhm_l, 'ns'
 	print 'FWHM single bunch:', fwhm_sb, 'ns'
 	print 'FWHM average:', (fwhm_r+fwhm_l+fwhm_sb)/3, 'ns'
 
-	#plt.show()
+	plt.show()
 
 
 
