@@ -219,13 +219,19 @@ class time_resolved_analysis():
 		return delay_smooth[0:len(delay_smooth)-1], intensity_smooth[0:len(delay_smooth)-1]
 		
 	def norm(self, delay, intensity, intensity_der,Nsm):
+		'''Original dataset shows an increasing amplitude during the scan that is not related
+		width the effect we want to observe. we then normalize it:
+		averaging five points to the left and 5 to the right and drawing a line, and then normalizing to one
+		
+		delay = array, the delay relative to intensity_der
+		intensity_der =array, the intensity scan derived, so that the there are peaks instead of edges'''
+		
 		self.delay = delay
 		self.intensity = intensity
 		self.intensity_der = intensity_der
 		self.Nsm = Nsm
-		#Original dataset shows an increasing amplitude during the scan that is not related
-		#width the effect we want to observe. we then normalize it:
-		#averaging five points to the left and 5 to the right and drawing a line
+		
+		#calculating the line
 		left_av = np.average(self.intensity[0:Nsm/3])
 		right_av = np.average(self.intensity[-Nsm/3:-1])
 		norm_line = left_av + (right_av-left_av)/(len(self.delay)*self.Nsm)*self.delay
@@ -318,7 +324,7 @@ class time_resolved_analysis():
 			plt.show()
 		return mean_l, fwhm_l, mean_r, fwhm_r
 
-	def fit_single_bunch(self, delay, intensity,left_edge, right_edge, fwhm, Nsm, plot):
+	def fit_single_bunch(self, delay, intensity,left_edge, right_edge, fwhm, Nsm, shift, plot):
 		'''this method provides an easy way to fit the edges. Of course if used to fit the delay scan, this has to be 
 			derived.
 		
@@ -326,16 +332,23 @@ class time_resolved_analysis():
 		intensity_der =array, the intensity scan derived, so that the there are peaks instead of edges
 		left_edge = int, the position of the left edge
 		right_edge = int, the position of the right edge
+		fwhm = int, the expected fwhm, use the average of the edges if available
+		Nsm = int, same as for smoothing
+		shift = float, to plot logaritmic, shift the data to avoid zeros (0.01?)
 
 		the method returns the position and the fwhm of single bunch.
 		Additionally it saves the parameters and the pcov matrix resulting from the fit in the intermediate folder,
-		as well as a graph with the fit if plot = 1'''
+		as well as a graph with the fit if plot = 1
+		
+		TO DO: I do not understand why the single bunch fwhm is 141 ns, it should be 125 ns, according to the script
+			with functions.'''
 		self.delay = delay
 		self.intensity = intensity
 		self.left_edge = left_edge
 		self.right_edge = right_edge
 		self.fwhm = fwhm
 		self.Nsm = Nsm
+		self.shift = shift
 		self.plot = plot 
 		
 		#defining the region to fit
@@ -343,32 +356,35 @@ class time_resolved_analysis():
 		h_w = fwhm/Nsm
 		l = np.int(mean - h_w)
 		r = np.int(mean + h_w)
+		#~ l = 40
+		#~ r = 62
 		x = self.delay[l : r]
-		y = self.intensity[l : r] 
+		y = self.intensity[l : r]
+		print 'l, r', l, r
+		plt.figure(122)
+		plt.title('fitting region for single bunch')
+		plt.plot(x, y)
 		#Guessing the parameter for the fit
 		n = len(x)                #the number of data
 		mean = (self.left_edge + self.right_edge)/2 #               #note this correction
-		sigma = self.fwhm       #note this correction
+		sigma = np.sqrt(sum(y*(x-mean)**2)/n )#self.fwhm       #note this correction
 		amp = np.amax(y)
 		#fitting
-		print mean, sigma, amp
-		plt.figure(200)
-		plt.plot(x,y)
 		[amp_sb,mean_sb,sigma_sb],pcov_sb = curve_fit(gaus,x,y,p0=[amp,mean,sigma])
-		print mean_sb, sigma_sb, amp_sb
 		fwhm_sb = sigma_sb * 2.35
 		#SAVING FIT PARAMETER
 		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'single_bunch_fit_param.txt', [amp_sb,mean_sb,sigma_sb] )
 		np.savetxt('intermediate/'+self.sample+'_'+self.up_down+'single_bunch_fit_pcov.txt', pcov_sb )
 		if plot ==1:
 			plt.figure(11)
-			plt.plot(self.delay, self.intensity,'b+:',label='data')
-			plt.plot(x,gaus(x,amp_sb,mean_sb,sigma_sb),color = 'red',label='single bunch position')
+			plt.plot(self.delay, self.shift+self.intensity,'b+:',label='data')
+			plt.plot(x,self.shift+gaus(x,amp_sb,mean_sb,sigma_sb),color = 'red',label='single bunch position')
 			plt.legend(loc=9)
 			plt.title('Delay scan')
 			plt.xlabel('Delay (ns)')
 			plt.ylabel('Normalized Intensity (a.u.)')
 			plt.yscale('log')
+			plt.ylim(0.01,1+self.shift)
 			plt.savefig('intermediate/'+self.sample+'__single_bunch_fitting.pdf', bbox_inches="tight") 
 			plt.show()
 		print 'fwhm', fwhm_sb
@@ -385,7 +401,7 @@ def test_time_resolved_analysis():
 	rejection = 140
 	#~ intensity_down = test.tiff_extract_n_scans(file_names, xpix_in, xpix_fin, ypix_in, ypix_fin, 'down')
 	intensity_down = np.loadtxt('intermediate/test_down_intensity.txt')
-	intensity_down = test.select_good_scans(intensity_down, xpix_in, xpix_fin, ypix_in, ypix_fin, rejection, 'down', 1)
+	intensity_down = test.select_good_scans(intensity_down, xpix_in, xpix_fin, ypix_in, ypix_fin, rejection, 'down', 0)
 
 	xpix_in = 860
 	xpix_fin = 864
@@ -394,7 +410,7 @@ def test_time_resolved_analysis():
 	rejection = 150
 	#~ intensity_up = test.tiff_extract_n_scans(file_names, xpix_in, xpix_fin, ypix_in, ypix_fin, 'up')
 	intensity_up = np.loadtxt('intermediate/test_up_intensity.txt')
-	intensity_up = test.select_good_scans(intensity_up, xpix_in, xpix_fin, ypix_in, ypix_fin, rejection, 'up', 1)
+	intensity_up = test.select_good_scans(intensity_up, xpix_in, xpix_fin, ypix_in, ypix_fin, rejection, 'up', 0)
 
 	intensity = (intensity_down + intensity_up)/2
 	plt.plot(intensity, 'r')
@@ -411,7 +427,7 @@ def test_time_resolved_analysis():
 	delay_smooth, intensity_smooth, intensity_der = test.norm(delay_smooth, intensity_smooth, intensity_der,Nsm)	
 	mean_l, fwhm_l, mean_r, fwhm_r = test.fit_edge(delay_smooth, intensity_der, 1)
 	fwhm_edges = (fwhm_l + fwhm_r)/2
-	mean_sb, fwhm_sb = test.fit_single_bunch(delay_smooth, intensity_smooth, mean_l, mean_r, fwhm_edges, Nsm, 1)
+	mean_sb, fwhm_sb = test.fit_single_bunch(delay_smooth, intensity_smooth, mean_l, mean_r, fwhm_edges, Nsm,0.01, 1)
 	print 'FWHM right edge:', fwhm_r, 'ns'
 	print 'FWHM left edge:', fwhm_l, 'ns'
 	print 'FWHM single bunch:', fwhm_sb, 'ns'
