@@ -439,6 +439,7 @@ class time_resolved_analysis():
 			plt.ylabel('Normalized Intensity (a.u.)')
 			plt.ylim(0.01,1.3+self.shift)
 			plt.savefig('intermediate/'+self.sample+'_delay_scan_fit.pdf', bbox_inches="tight") 
+			plt.show()
 		fwhm = 2.3548 * sigma
 		return fwhm
 		
@@ -458,7 +459,7 @@ def test_time_resolved_analysis():
 	#~ intensity_down = test.tiff_extract_n_scans()
 	intensity_down = np.loadtxt('intermediate/test_down_intensity.txt')
 	test.set_rejection(140)
-	intensity_down = test.select_good_scans(intensity_down, 0)
+	intensity_down = test.select_good_scans(intensity_down, 1)
 
 	xpix_in = 860
 	xpix_fin = 864
@@ -468,7 +469,7 @@ def test_time_resolved_analysis():
 	#~ intensity_up = test.tiff_extract_n_scans()
 	intensity_up = np.loadtxt('intermediate/test_up_intensity.txt')
 	test.set_rejection(150)
-	intensity_up = test.select_good_scans(intensity_up, 0)
+	intensity_up = test.select_good_scans(intensity_up, 1)
 
 	intensity = (intensity_down + intensity_up)/2
 
@@ -477,15 +478,15 @@ def test_time_resolved_analysis():
 	delay_smooth, intensity_smooth = test.norm(delay_smooth, intensity_smooth)	
 	#~ plt.plot(intensity_smooth)
 	intensity_der = test.derive(intensity_smooth)
-	mean_l, fwhm_l, mean_r, fwhm_r = test.estimate_edge(delay_smooth, intensity_der, 0)
+	mean_l, fwhm_l, mean_r, fwhm_r = test.estimate_edge(delay_smooth, intensity_der, 1)
 	fwhm_edges = (fwhm_l + fwhm_r)/2
-	mean_sb, fwhm_sb, amp_sb = test.estimate_single_bunch(delay_smooth, intensity_smooth, mean_l, mean_r, fwhm_edges,0.0, 0)
+	mean_sb, fwhm_sb, amp_sb = test.estimate_single_bunch(delay_smooth, intensity_smooth, mean_l, mean_r, fwhm_edges,0.0, 1)
 	print 'FWHM right edge, mean:', fwhm_r, 'ns', mean_r, 'ns'
 	print 'FWHM left edge, mean:', fwhm_l, 'ns', mean_l, 'ns'
 	print 'FWHM single bunch,mean, amp:', fwhm_sb, 'ns', mean_sb, 'ns', amp_sb, 'ns'
 	print 'FWHM average:', (fwhm_r+fwhm_l+fwhm_sb)/3, 'ns'
 	test.set_fit_delay_scan_parameter(mean_l, mean_r, mean_sb, amp_sb, fwhm_sb)
-	fwhm = test.fit_delay_scan(delay_smooth,intensity_smooth, 0)
+	fwhm = test.fit_delay_scan(delay_smooth,intensity_smooth, 1)
 	print 'FWHM from delay scan:', fwhm, 'ns'
 
 	#~ plt.show()
