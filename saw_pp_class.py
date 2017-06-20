@@ -276,7 +276,7 @@ class time_resolved_analysis():
 		np.savetxt('intermediate/'+self.sample+'_intensity_derived.txt', intensity_der) 
 		return intensity_der[1:len(intensity_der)+2]
 	
-	def fit_edge(self, delay, intensity_der, plot):
+	def estimate_edge(self, delay, intensity_der, plot):
 		'''this method provides an easy way to fit the edges. Of course if used to fit the delay scan, this has to be 
 			derived.
 		
@@ -339,7 +339,7 @@ class time_resolved_analysis():
 			plt.show()
 		return mean_l, fwhm_l, mean_r, fwhm_r
 
-	def fit_single_bunch(self, delay, intensity,left_edge, right_edge, fwhm, shift, plot):
+	def estimate_single_bunch(self, delay, intensity,left_edge, right_edge, fwhm, shift, plot):
 		'''this method provides an easy way to fit the edges. Of course if used to fit the delay scan, this has to be 
 			derived.
 		
@@ -406,6 +406,15 @@ class time_resolved_analysis():
 	
 	
 	def set_fit_delay_scan_parameter(self, mean_l, mean_r, mean_sb, amp_sb, fwhm):
+		'''Use this method to set the initial parameters for the fit delay scan. One can use the estimate_edges and
+		estimate_single bunch to guess them.
+		
+		mean_l  = int, position of the left edge
+		mean_r  = int, position of the right edge
+		mean_s  = int, position of the single bunch
+		amp_sb = int, amplitude of the single bunch
+		fwhm = int, fwhm of the sb or of the derivative of the edge'''
+		
 		self.mean_l = mean_l
 		self.mean_r = mean_r
 		self.mean_sb = mean_sb
@@ -414,6 +423,11 @@ class time_resolved_analysis():
 		
 	
 	def fit_delay_scan(self, delay, intensity, plot):
+		'''This method provides an easy way to fit the complete delay scan. set the initial parameters for the fit
+		using the set_fit_delay_scan_parameter method. The fit is carried out using the sb function defined in lib.py
+		
+		it return the fwhm, and saves the parameters and the pcov matrix in text files in the intermediate folder.
+		it saves a pdf with the plot of the data and the fit'''
 		self.delay = delay
 		self.intensity = intensity
 		
@@ -470,9 +484,9 @@ def test_time_resolved_analysis():
 	delay_smooth, intensity_smooth = test.norm(delay_smooth, intensity_smooth)	
 	#~ plt.plot(intensity_smooth)
 	intensity_der = test.derive(intensity_smooth)
-	mean_l, fwhm_l, mean_r, fwhm_r = test.fit_edge(delay_smooth, intensity_der, 0)
+	mean_l, fwhm_l, mean_r, fwhm_r = test.estimate_edge(delay_smooth, intensity_der, 0)
 	fwhm_edges = (fwhm_l + fwhm_r)/2
-	mean_sb, fwhm_sb, amp_sb = test.fit_single_bunch(delay_smooth, intensity_smooth, mean_l, mean_r, fwhm_edges,0.0, 0)
+	mean_sb, fwhm_sb, amp_sb = test.estimate_single_bunch(delay_smooth, intensity_smooth, mean_l, mean_r, fwhm_edges,0.0, 0)
 	print 'FWHM right edge, mean:', fwhm_r, 'ns', mean_r, 'ns'
 	print 'FWHM left edge, mean:', fwhm_l, 'ns', mean_l, 'ns'
 	print 'FWHM single bunch,mean, amp:', fwhm_sb, 'ns', mean_sb, 'ns', amp_sb, 'ns'
