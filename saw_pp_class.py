@@ -300,12 +300,12 @@ class time_resolved_analysis():
 		sigma = np.sqrt(sum(y*(x_l-mean)**2)/n )#guessing the fwhm
 		#~ plt.figure(302)
 		#~ plt.plot(x_l,y)
-		#~ print mean, sigma*2.35, 
+		#~ print mean, sigma*2.3548, 
 		#~ plt.show()
 		
 		#fitting
 		[amp_l,mean_l,sigma_l],pcov_l = curve_fit(gaus,x_l,y,p0=[amp,mean,sigma])
-		fwhm_l = sigma_l * 2.35
+		fwhm_l = sigma_l * 2.3548
 
 		#RIGHT PEAK
 		x_r = self.delay[len(self.delay)/2:len(self.delay)]
@@ -316,7 +316,7 @@ class time_resolved_analysis():
 		#No need to guess sigma again, taking the value from the previous fit
 		#fitting
 		[amp_r,mean_r,sigma_r],pcov_r = curve_fit(gaus,x_r,y,p0=[amp,mean,sigma_l])
-		fwhm_r = sigma_r * 2.35
+		fwhm_r = sigma_r * 2.3548
 		#SAVING FIT PARAMETER
 		np.savetxt('intermediate/'+self.sample+'_left_edge_fit_param.txt', [amp_l,mean_l,sigma_l] )
 		np.savetxt('intermediate/'+self.sample+'_left_edge_fit_pcov.txt', pcov_l )
@@ -385,7 +385,7 @@ class time_resolved_analysis():
 		amp = np.amax(y)
 		#fitting
 		[amp_sb,mean_sb,sigma_sb],pcov_sb = curve_fit(gaus,x,y,p0=[amp,mean,sigma])
-		fwhm_sb = sigma_sb * 2.35
+		fwhm_sb = sigma_sb * 2.3548
 		#SAVING FIT PARAMETER
 		np.savetxt('intermediate/'+self.sample+'_single_bunch_fit_param.txt', [amp_sb,mean_sb,sigma_sb] )
 		np.savetxt('intermediate/'+self.sample+'_single_bunch_fit_pcov.txt', pcov_sb )
@@ -417,7 +417,7 @@ class time_resolved_analysis():
 		self.delay = delay
 		self.intensity = intensity
 		
-		sigma = self.fwhm / 2.35
+		sigma = self.fwhm / 2.3548
 		[self.mean_l, self.mean_r, self.mean_sb,sigma, self.amp_sb],pcov_del = curve_fit(sb,self.delay,self.intensity,p0=[self.mean_l, self.mean_r, self.mean_sb,sigma, self.amp_sb])
 		np.savetxt('intermediate/'+self.sample+'_delay_scan_fit_param.txt', [self.mean_l, self.mean_r, self.mean_sb,sigma, self.amp_sb] )
 		np.savetxt('intermediate/'+self.sample+'_delay_scan_fit_pcov.txt', pcov_del )
@@ -432,7 +432,7 @@ class time_resolved_analysis():
 			plt.ylabel('Normalized Intensity (a.u.)')
 			plt.ylim(0.01,1.3+self.shift)
 			plt.savefig('intermediate/'+self.sample+'_delay_scan_fit.pdf', bbox_inches="tight") 
-		fwhm = 2.35 * sigma
+		fwhm = 2.3548 * sigma
 		return fwhm
 		
 		
