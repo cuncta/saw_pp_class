@@ -1,14 +1,7 @@
-#~ from lib import *
 import numpy as np
 import matplotlib.pyplot as plt
-#~ import pylab as plb
 from scipy.optimize import curve_fit
-from scipy import asarray as ar,exp
-from PIL import Image
-import time
-import sys
 import os 
-import re
 from lib import *
 
 
